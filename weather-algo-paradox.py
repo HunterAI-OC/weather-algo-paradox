@@ -218,6 +218,7 @@ def parse_buckets(event: dict) -> list[dict]:
             "clob_token":  _clob_token(b),
             "market_id":   b.get("id", ""),
         })
+    buckets = [b for b in buckets if b["temp"] is not None]
     return sorted(buckets, key=lambda x: x["temp"])
 
 
@@ -341,7 +342,9 @@ def evaluate_event(event: dict) -> bool:
         print(f"[{ts()}] No weather data for {city}")
         return False
 
-    ecmwf_peak = weather["ecmwf_peak"]
+    ecmwf_peak = weather.get("ecmwf_peak")
+    if ecmwf_peak is None:
+        return False
     target = round(ecmwf_peak)   # nearest integer
 
     # Parse buckets
@@ -353,7 +356,7 @@ def evaluate_event(event: dict) -> bool:
     adjacent, spread_cost = find_adjacent_buckets(buckets, ecmwf_peak)
 
     # Paradox condition: spread cost must be < $1.00
-    if spread_cost >= 1.0:
+    if spread_cost is None or spread_cost >= 1.0:
         print(f"[{ts()}] {city} {market_date}: spread cost ${spread_cost:.4f} >= $1.00 — no entry")
         return False
 
