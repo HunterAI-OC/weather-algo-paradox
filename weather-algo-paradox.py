@@ -179,16 +179,9 @@ def get_weather_data(city: str, date: str) -> dict | None:
         return {
             "ecmwf_max": daily["temperature_2m_max"][idx],
             "ecmwf_min": daily["temperature_2m_min"][idx],
-            "ecmwf_peak": daily["temperature_2m_max"][idx],
         }
 
-    # If target date not in forecast, return today's best estimate
-    if dates:
-        return {
-            "ecmwf_max":  daily["temperature_2m_max"][0],
-            "ecmwf_min":  daily["temperature_2m_min"][0],
-            "ecmwf_peak": daily["temperature_2m_max"][0],
-        }
+    # Target date not in forecast range — return None (don't guess)
     return None
 
 
@@ -395,8 +388,20 @@ def evaluate_event(event: dict) -> bool:
         print(f"[{ts()}] No weather data for {city}")
         return False
 
-    ecmwf_peak = weather.get("ecmwf_peak")
+    ecmwf_max = weather.get("ecmwf_max")
+    ecmwf_min = weather.get("ecmwf_min")
+    if ecmwf_max is None and ecmwf_min is None:
+        print(f"[{ts()}] {city} {market_date}: no ECMWF data")
+        return False
+
+    # Route to correct forecast field: highest market → max, lowest market → min
+    if "lowest-temperature" in slug:
+        ecmwf_peak = ecmwf_min
+    else:
+        ecmwf_peak = ecmwf_max
+
     if ecmwf_peak is None:
+        print(f"[{ts()}] {city} {market_date}: no ECMWF peak data")
         return False
     target = round(ecmwf_peak)   # nearest integer
 
