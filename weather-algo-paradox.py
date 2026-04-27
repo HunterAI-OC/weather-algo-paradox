@@ -411,7 +411,7 @@ def evaluate_event(event: dict) -> bool:
     # ROI = ($1 - spread_cost) / spread_cost  →  ≥50% requires spread_cost < $0.667
     ROI_THRESHOLD_COST = 0.667
     if spread_cost >= ROI_THRESHOLD_COST:
-        print(f"[{ts()}] {city} {market_date}: spread cost ${spread_cost:.4f} → ROI < 30% — skip")
+        print(f"[{ts()}] {city} {market_date}: spread cost ${spread_cost:.4f} → ROI < 50% — skip")
         return False
     if len(adjacent) < 2:
         print(f"[{ts()}] {city} {market_date}: fewer than 2 adjacent buckets — skip")
