@@ -569,8 +569,10 @@ def check_resolutions():
             if trade.get("slug") != slug:
                 continue
 
-            # Determine payout
-            if winner_q == trade.get("bucket_question"):
+            # Determine payout — fuzzy match on temperature, not exact string
+            winner_temp = extract_temp_from_question(winner_q)
+            trade_temp = extract_temp_from_question(trade.get("bucket_question", ""))
+            if winner_temp is not None and trade_temp is not None and abs(winner_temp - trade_temp) < 0.5:
                 payout = 1.0
             else:
                 payout = 0.0
