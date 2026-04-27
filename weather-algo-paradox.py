@@ -419,10 +419,9 @@ def evaluate_event(event: dict) -> bool:
         print(f"[{ts()}] {city} {market_date}: fewer than 2 adjacent buckets — skip")
         return False
 
-    # Position sizing — uniform across 3 buckets
-    # Kelly-ish: f = (payout * p - cost) / payout  — for now use flat $10 per bucket
-    position_size = 10.0
-    notional_per_bucket = position_size / len(adjacent)
+    # Position sizing — flat $10 per bucket, no division
+    notional_per_bucket = 10.0
+    position_size = notional_per_bucket * len(adjacent)  # total for logging only
 
     # Open paper trade for each bucket
     trade_ids = []
