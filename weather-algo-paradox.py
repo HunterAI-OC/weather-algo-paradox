@@ -493,7 +493,7 @@ def fetch_all_weather_events() -> list[dict]:
 LAST_SUMMARY_HOUR = None
 
 def print_hourly_summary():
-    """Print open trades count, resolved count, and daily PnL — once per hour only."""
+    """Print open, resolved, daily PnL — once per hour only."""
     global LAST_SUMMARY_HOUR
     now = datetime.now(timezone.utc)
     current_hour = now.strftime("%Y-%m-%dT%H")
@@ -505,12 +505,14 @@ def print_hourly_summary():
         open_df = journal.get_open_trades()
         closed_df = journal.get_closed_trades()
         today = now.strftime("%Y-%m-%d")
-
         today_resolved = closed_df[
             closed_df["resolution_time_utc"].str[:10] == today
         ]
-        daily_pnl = float(today_resolved["trade_pnl"].sum()) if "trade_pnl" in today_resolved.columns and len(today_resolved) > 0 else 0.0
-
+        daily_pnl = (
+            float(today_resolved["trade_pnl"].sum())
+            if "trade_pnl" in today_resolved.columns and len(today_resolved) > 0
+            else 0.0
+        )
         print(
             f"[{ts()}] STATUS | "
             f"open={len(open_df)} | "
@@ -519,6 +521,17 @@ def print_hourly_summary():
         )
     except Exception as e:
         print(f"[{ts()}] Summary error: {e}")
+
+
+def check_resolutions():
+    """Check all open trades for resolved markets."""
+    try:
+        open_trades = journal.get_open_trades()
+    except Exception:
+        return
+
+    slugs_seen = set()
+    for _, row in open_trades.iterrows():
         slug = row.get("slug")
         if slug in slugs_seen:
             continue
