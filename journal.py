@@ -217,8 +217,9 @@ def close_trade(
 
     entry_price = float(df.loc[idx, "entry_price"])
     position_size = float(df.loc[idx, "position_size"])
-    # Realized P&L = (exit - entry) × position_size
-    # For a YES contract at price p, payout is 1.0 on win
+    # Realized P&L = (exit_price - entry_price) × position_size
+    # For a YES contract: exit_price is the market price when closing early.
+    # This measures scalp P&L (pre-resolution). trade_pnl measures held-to-resolve P&L.
     realized_pnl = (exit_price - entry_price) * position_size
 
     df.loc[idx, "exit_price"] = exit_price

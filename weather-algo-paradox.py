@@ -528,13 +528,9 @@ def check_resolutions():
     except Exception:
         return
 
-    slugs_seen = set()
-    for _, row in open_trades.iterrows():
-        slug = row.get("slug")
-        if slug in slugs_seen:
-            continue
-        slugs_seen.add(slug)
-
+    # Group slugs — one API call per unique market, not per trade row
+    slugs = open_trades["slug"].unique()
+    for slug in slugs:
         try:
             resp = requests.get(
                 "https://gamma-api.polymarket.com/events",
