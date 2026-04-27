@@ -127,7 +127,7 @@ def _save_df(df: pd.DataFrame()):
 def _write_full(df: pd.DataFrame()):
     """Write full Parquet without partitioning (simpler for small datasets)."""
     table = pa.Table.from_pandas(df, schema=SCHEMA, preserve_index=False)
-    writer = pq.ParquetWriter(str(JOURNAL_PATH), schema)
+    writer = pq.ParquetWriter(str(JOURNAL_PATH), SCHEMA)
     writer.write_table(table)
     writer.close()
 
