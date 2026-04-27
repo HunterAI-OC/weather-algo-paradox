@@ -192,9 +192,6 @@ def parse_buckets(event: dict) -> list[dict]:
     Attaches 'unit' field: 'F' or 'C'.
     """
     buckets = []
-    market_unit = 'C'  # default
-
-
     for b in event.get("markets", []):
         if not b.get("acceptingOrders"):
             continue
@@ -211,13 +208,9 @@ def parse_buckets(event: dict) -> list[dict]:
         temp_raw = extract_temp_from_question(q)
         if temp_raw is None:
             continue
-        # Detect unit from first bucket that has it
-        if market_unit == 'C':
-            detected = detect_question_unit(q)
-            if detected != 'C':
-                market_unit = detected
-        # Normalize to Celsius
-        if market_unit == 'F':
+        # Detect unit per bucket — no shared state between buckets
+        unit = detect_question_unit(q)
+        if unit == 'F':
             temp_norm = fahrenheit_to_celsius(temp_raw)
         else:
             temp_norm = temp_raw
@@ -227,7 +220,7 @@ def parse_buckets(event: dict) -> list[dict]:
             "no_price":   float(raw[1]) if len(raw) > 1 else 1.0,
             "temp":        temp_norm,   # always Celsius
             "temp_raw":    temp_raw,    # original unit value (for display)
-            "unit":        market_unit,
+            "unit":        unit,
             "clob_token":  _clob_token(b),
             "market_id":   b.get("id", ""),
         })
