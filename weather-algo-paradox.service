@@ -1,0 +1,17 @@
+[Unit]
+Description=Polymarket Paradox Strategy — Gambler's Paradox weather trading
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/polymarket/weather-algo-paradox
+EnvironmentFile=/home/ubuntu/polymarket/.env
+ExecStart=/usr/bin/python3 -u weather-algo-paradox.py
+StandardOutput=append:/home/ubuntu/polymarket/weather-algo-paradox/paradox.log
+StandardError=append:/home/ubuntu/polymarket/weather-algo-paradox/paradox.log
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
