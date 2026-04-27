@@ -511,12 +511,14 @@ def print_hourly_summary():
             if "trade_pnl" in today_resolved.columns and len(today_resolved) > 0
             else 0.0
         )
-        print(
+        msg = (
             f"[{ts()}] STATUS | "
             f"open={len(open_df)} | "
             f"resolved={len(closed_df)} | "
             f"daily_pnl=${daily_pnl:+.2f}"
         )
+        print(msg)
+        discord_post(msg)
     except Exception as e:
         print(f"[{ts()}] Summary error: {e}")
 
