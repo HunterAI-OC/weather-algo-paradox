@@ -333,7 +333,7 @@ def fmt_trade_alert(slug: str, city: str, target: int, buckets: list[dict],
     bucket_lines = []
     for b in buckets:
         bucket_lines.append(
-            f"  {b['temp']:.0f}°C @ YES={b['yes_price']:.4f} | {b['question'][:50]}"
+            f"  {b['temp']:.0f}°C @ YES={b['yes_price']:.4f} | {b['question'][:80]}"
         )
     return (
         f"**🎰 PARADOX ENTRY — {city}**\n"
