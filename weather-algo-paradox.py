@@ -356,12 +356,14 @@ def evaluate_event(event: dict) -> bool:
     adjacent, spread_cost = find_adjacent_buckets(buckets, ecmwf_peak)
 
     # Paradox condition: spread cost must be < $1.00
-    if spread_cost is None or spread_cost >= 1.0:
-        print(f"[{ts()}] {city} {market_date}: spread cost ${spread_cost:.4f} >= $1.00 — no entry")
+    # Paradox gate: spread must cost < $0.769 for ≥30% ROI
+    # ROI = ($1 - spread_cost) / spread_cost  →  ≥30% requires spread_cost < $0.769
+    ROI_THRESHOLD_COST = 0.769
+    if spread_cost >= ROI_THRESHOLD_COST:
+        print(f"[{ts()}] {city} {market_date}: spread cost ${spread_cost:.4f} → ROI < 30% — skip")
         return False
-
     if len(adjacent) < 2:
-        print(f"[{ts()}] {city} {market_date}: fewer than 2 adjacent buckets — no entry")
+        print(f"[{ts()}] {city} {market_date}: fewer than 2 adjacent buckets — skip")
         return False
 
     # Position sizing — uniform across 3 buckets
