@@ -15,7 +15,7 @@ import pyarrow.parquet as pq
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-JOURNAL_PATH = Path("paper_trades.parquet")
+JOURNAL_PATH = Path(__file__).parent / "paper_trades.parquet"
 JOURNAL_AVAILABLE = True  # journal.py is always available when imported directly
 PARTITION_COL = "city"
 
