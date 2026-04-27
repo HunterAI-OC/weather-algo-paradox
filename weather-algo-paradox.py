@@ -193,8 +193,15 @@ def get_weather_data(city: str, date: str) -> dict | None:
 
 
 def parse_buckets(event: dict) -> list[dict]:
-    """Return tradeable buckets sorted by temperature."""
+    """
+    Return tradeable buckets sorted by temperature.
+    All temperatures are normalized to Celsius regardless of market unit.
+    Attaches 'unit' field: 'F' or 'C'.
+    """
     buckets = []
+    market_unit = 'C'  # default
+
+
     for b in event.get("markets", []):
         if not b.get("acceptingOrders"):
             continue
@@ -207,14 +214,27 @@ def parse_buckets(event: dict) -> list[dict]:
         yes = float(raw[0]) if raw and len(raw) > 0 else None
         if yes is None or yes <= 0.001 or yes >= 0.999:
             continue
-        # Extract temperature from question
         q = b.get("question", "")
-        temp = extract_temp_from_question(q)
+        temp_raw = extract_temp_from_question(q)
+        if temp_raw is None:
+            continue
+        # Detect unit from first bucket that has it
+        if market_unit == 'C':
+            detected = detect_question_unit(q)
+            if detected != 'C':
+                market_unit = detected
+        # Normalize to Celsius
+        if market_unit == 'F':
+            temp_norm = fahrenheit_to_celsius(temp_raw)
+        else:
+            temp_norm = temp_raw
         buckets.append({
             "question":    q,
             "yes_price":   yes,
             "no_price":   float(raw[1]) if len(raw) > 1 else 1.0,
-            "temp":        temp,
+            "temp":        temp_norm,   # always Celsius
+            "temp_raw":    temp_raw,    # original unit value (for display)
+            "unit":        market_unit,
             "clob_token":  _clob_token(b),
             "market_id":   b.get("id", ""),
         })
@@ -222,20 +242,53 @@ def parse_buckets(event: dict) -> list[dict]:
     return sorted(buckets, key=lambda x: x["temp"])
 
 
+def fahrenheit_to_celsius(f: float) -> float:
+    """Convert Fahrenheit to Celsius."""
+    return (f - 32.0) * 5.0 / 9.0
+
+
+def celsius_to_fahrenheit(c: float) -> float:
+    """Convert Celsius to Fahrenheit."""
+    return (c * 9.0 / 5.0) + 32.0
+
+
+def detect_question_unit(q: str) -> str:
+    """
+    Detect temperature unit from a bucket question string.
+    Returns 'F' for Fahrenheit, 'C' for Celsius, or 'C' as default.
+    """
+    if re.search(r'°?\s*F\b', q, re.IGNORECASE):
+        return 'F'
+    if re.search(r'°?\s*C\b', q, re.IGNORECASE):
+        return 'C'
+    return 'C'  # default to Celsius
+
+
+
 def extract_temp_from_question(q: str) -> float | None:
-    """Extract temperature value from bucket question like 'Will the highest temperature in Munich be 18°C on April 26?'."""
+    """
+    Extract temperature numeric value from bucket question string.
+    Also returns the detected unit as a second value via a named tuple,
+    or None if no temperature found.
+    """
     # Try "X°C" pattern first
     m = re.search(r'(\d+(?:\.\d+)?)\s*°?\s*C', q, re.IGNORECASE)
     if m:
         return float(m.group(1))
-    # Try "X-Y°F" pattern (Fahrenheit buckets)
+    # Try "X-Y°F" range → return midpoint
     m = re.search(r'(\d+)-(\d+)\s*°?F', q, re.IGNORECASE)
     if m:
-        lo = int(m.group(1))
-        hi = int(m.group(2))
-        return (lo + hi) / 2.0
-    # Try "X°F or below" pattern
-    m = re.search(r'(\d+)\s*°?F.*below', q, re.IGNORECASE)
+        return (int(m.group(1)) + int(m.group(2))) / 2.0
+    # Try "X°F or below" / "X°F or higher" / "X°F or above"
+    m = re.search(r'(\d+(?:\.\d+)?)\s*°?F\s+(?:or below|or higher|or above)', q, re.IGNORECASE)
+    if m:
+        return float(m.group(1))
+    # Try raw "X°F" pattern without unit symbol
+    m = re.search(r'(\d+(?:\.\d+)?)\s*°?F(?!\s+(?:or|and))', q, re.IGNORECASE)
+    if m:
+        return float(m.group(1))
+    # Try plain number when unit is implicit (detect from other buckets or default)
+    m = re.search(r'(\d+(?:\.\d+)?)\s*(?:°|\s)(?=\s|$|\.)', q)
     if m:
         return float(m.group(1))
     return None
