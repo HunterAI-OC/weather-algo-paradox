@@ -15,7 +15,7 @@ import pyarrow.parquet as pq
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-JOURNAL_PATH = Path("/home/ubuntu/polymarket/weather-algo-paradox/paper_trades.parquet")
+JOURNAL_PATH = Path("paper_trades.parquet")
 JOURNAL_AVAILABLE = True  # journal.py is always available when imported directly
 PARTITION_COL = "city"
 
@@ -127,7 +127,7 @@ def _save_df(df: pd.DataFrame()):
 def _write_full(df: pd.DataFrame()):
     """Write full Parquet without partitioning (simpler for small datasets)."""
     table = pa.Table.from_pandas(df, schema=SCHEMA, preserve_index=False)
-    writer = pq.ParquetWriter(str(JOURNAL_PATH), SCHEMA)
+    writer = pq.ParquetWriter(str(JOURNAL_PATH), schema)
     writer.write_table(table)
     writer.close()
 
