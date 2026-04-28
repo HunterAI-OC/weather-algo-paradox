@@ -418,9 +418,11 @@ def evaluate_event(event: dict) -> bool:
         print(f"[{ts()}] {city} {market_date}: only {len(adjacent)} adjacent buckets — skip (need exactly 3 for paradox)")
         return False
 
-    # Position sizing — flat $10 per bucket, no division
-    notional_per_bucket = 10.0
-    position_size = notional_per_bucket * len(adjacent)  # total for logging only
+    # Position sizing — proportional, $10 per market across 3 buckets
+    # shares_per_bucket = $10 / spread_cost (equal shares per bucket regardless of price)
+    TOTAL_BUDGET_PER_MARKET = 10.0
+    shares_per_bucket = TOTAL_BUDGET_PER_MARKET / spread_cost
+    position_size = shares_per_bucket  # shares, not dollar cost
 
     # Open paper trade for each bucket
     trade_ids = []
@@ -431,11 +433,11 @@ def evaluate_event(event: dict) -> bool:
             clob_token=b["clob_token"],
             entry_price=b["yes_price"],
             entry_price_market=b["yes_price"],
-            position_size=notional_per_bucket,
+            position_size=shares_per_bucket,
             direction="BUY",
             ecmwf_estimate=ecmwf_peak,
             market_url=f"https://polymarket.com/event/{slug}",
-            notes=f"PARADOX spread_cost=${spread_cost:.4f} target={target}°C sigma={METEO_SIGMA}°C",
+            notes=f"PARADOX spread_cost=${spread_cost:.4f} shares={shares_per_bucket:.2f} target={target}°C",
         )
         trade_ids.append(tid)
         print(f"[{ts()}] Opened trade {tid}: {b['question'][:50]} @ {b['yes_price']}")
