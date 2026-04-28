@@ -515,22 +515,19 @@ def print_hourly_summary():
 
         # Spread-level win rate and total P&L
         if len(closed_df) > 0:
-            wins = (closed_df["contract_payout"] > 0).sum()
-            total_trades = len(closed_df)
             total_pnl = float(closed_df["trade_pnl"].sum()) if "trade_pnl" in closed_df.columns else 0.0
-            # Spread-level: group by slug
+            # Market-level: group by slug
             spread_wins = 0
             spread_total = 0
             for slug, grp in closed_df.groupby("slug"):
                 spread_total += 1
                 if grp["trade_pnl"].sum() > 0:
                     spread_wins += 1
-            win_rate_pct = (wins / total_trades * 100) if total_trades > 0 else 0
             spread_win_rate = (spread_wins / spread_total * 100) if spread_total > 0 else 0
             msg = (
                 f"[{ts()}] STATUS | "
                 f"open={len(open_df)} | "
-                f"resolved={len(closed_df)} | "
+                f"resolved_markets={spread_total} | "
                 f"daily_pnl=${daily_pnl:+.2f} | "
                 f"spread_win={spread_wins}/{spread_total} ({spread_win_rate:.0f}%) | "
                 f"total_pnl=${total_pnl:+.2f}"
