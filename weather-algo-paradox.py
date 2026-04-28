@@ -524,7 +524,11 @@ def print_hourly_summary():
 
 
 def check_resolutions():
-    """Check all open trades for resolved markets."""
+    """
+    Check all open trades for resolved markets.
+    Resolution detected via closed=True + resolutionSource (not via winner field).
+    Temperature extracted from winner question OR eventMetadata.context_description.
+    """
     try:
         open_trades = journal.get_open_trades()
     except Exception:
@@ -546,13 +550,29 @@ def check_resolutions():
             print(f"[{ts()}] Resolution check error for {slug}: {e}")
             continue
 
-        markets = ev.get("markets", []) if ev else []
-        resolved = [m for m in markets if m.get("winner")]
-        if not resolved:
+        # Resolution condition: closed=True + resolutionSource present
+        # (NOT via winner field — UMA proposed state leaves winner=None)
+        closed = ev.get("closed", False)
+        rs = ev.get("resolutionSource", "")
+        if not (closed and rs):
             continue
 
-        winner = resolved[0]
-        winner_q = winner.get("question", "")
+        markets = ev.get("markets", []) if ev else []
+        winners = [m for m in markets if m.get("winner")]
+        em = ev.get("eventMetadata", {})
+        desc = em.get("context_description", "")
+
+        # Resolve actual temperature: winner question first, then context fallback
+        if winners:
+            winner_q = winners[0].get("question", "")
+            actual_temp = extract_temp_from_question(winner_q)
+        elif desc:
+            actual_temp = _extract_temp_from_context(desc)
+        else:
+            print(f"[{ts()}] Resolved but no temp data for {slug}")
+            actual_str = "unknown"
+            actual_temp = None
+        actual_str = f"{actual_temp}°C" if actual_temp is not None else "unknown"
         end_date = ev.get("endDate", "") or ""
 
         # Find the bucket that matches our trade
@@ -561,29 +581,36 @@ def check_resolutions():
                 continue
 
             # Determine payout — fuzzy match on temperature, not exact string
-            winner_temp = extract_temp_from_question(winner_q)
             trade_temp = extract_temp_from_question(trade.get("bucket_question", ""))
-            if winner_temp is not None and trade_temp is not None and abs(winner_temp - trade_temp) < 0.5:
+            if actual_temp is not None and trade_temp is not None and abs(actual_temp - trade_temp) < 0.5:
                 payout = 1.0
             else:
                 payout = 0.0
 
-            # Get actual temperature from winner question
-            actual_temp = extract_temp_from_question(winner_q)
-            actual_str = f"{actual_temp}°C" if actual_temp else winner_q
-
             journal.resolve_trade(
                 trade_id=trade.get("trade_id"),
-                resolved_bucket=winner_q,
+                resolved_bucket=actual_str,
                 actual_temperature=actual_str,
                 contract_payout=payout,
                 resolution_time_utc=end_date,
             )
-            pnl = trade.get("position_size", 0) * (payout - trade.get("entry_price", 0))
             outcome = "WIN" if payout > 0 else "LOSS"
-            print(f"[{ts()}] RESOLVED {outcome} {trade.get('trade_id')}: {actual_str} → payout {payout}")
+            print(f"[{ts()}] RESOLVED {outcome} {trade.get('trade_id')}: {actual_str}")
 
         journal.mark_slug_resolved(slug)
+
+
+def _extract_temp_from_context(desc: str) -> float | None:
+    """Extract resolved temperature from eventMetadata context_description."""
+    if not desc:
+        return None
+    m = re.search(r'(\d+(?:\.\d+)?)\s*°?C\s+or\s+(?:higher|lower|below)', desc, re.IGNORECASE)
+    if m: return float(m.group(1))
+    m = re.search(r'(?:reaching|of|at|around)\s+(\d+(?:\.\d+)?)\s*°?C', desc, re.IGNORECASE)
+    if m: return float(m.group(1))
+    temps = re.findall(r'(\d+(?:\.\d+)?)\s*°?C', desc)
+    if temps: return max(float(t) for t in temps)
+    return None
 
 
 # ── Main loop ─────────────────────────────────────────────────────────────────
