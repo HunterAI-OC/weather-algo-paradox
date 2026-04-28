@@ -294,17 +294,19 @@ def _clob_token(market: dict) -> str:
 
 def find_adjacent_buckets(buckets: list[dict], target_temp: float) -> tuple[list[dict], float]:
     """
-    Find the 3 buckets closest to target_temp (±1 from rounded estimate).
+    Find exactly 3 buckets: target-1, target, target+1.
+    Rounds ECMWF forecast using 'round half up' (banker's rounding differs for .5).
     Returns (adjacent_buckets, spread_cost).
     """
     if not buckets:
         return [], 0.0
 
-    rounded = round(target_temp)
+    # Round half up: 26.5→27, 26.4→26, 26.7→27
+    rounded = int(target_temp + 0.5)
     lo = rounded - 1
     hi = rounded + 1
 
-    # Find buckets within [lo, hi] range
+    # Must have exactly 3 consecutive integer buckets
     adjacent = [b for b in buckets if lo <= b["temp"] <= hi]
     spread_cost = sum(b["yes_price"] for b in adjacent)
 
@@ -406,15 +408,14 @@ def evaluate_event(event: dict) -> bool:
     # Find 3 adjacent buckets around target
     adjacent, spread_cost = find_adjacent_buckets(buckets, ecmwf_peak)
 
-    # Paradox condition: spread cost must be < $1.00
-    # Paradox gate: spread must cost < $0.667 for ≥50% ROI
-    # ROI = ($1 - spread_cost) / spread_cost  →  ≥50% requires spread_cost < $0.667
-    ROI_THRESHOLD_COST = 0.667
+    # Paradox gate: spread cost must be < $0.50 for ≥50% ROI
+    # ROI = ($1 - spread_cost) / spread_cost  →  ≥50% requires spread_cost < $0.50
+    ROI_THRESHOLD_COST = 0.50
     if spread_cost >= ROI_THRESHOLD_COST:
         print(f"[{ts()}] {city} {market_date}: spread cost ${spread_cost:.4f} → ROI < 50% — skip")
         return False
-    if len(adjacent) < 2:
-        print(f"[{ts()}] {city} {market_date}: fewer than 2 adjacent buckets — skip")
+    if len(adjacent) != 3:
+        print(f"[{ts()}] {city} {market_date}: only {len(adjacent)} adjacent buckets — skip (need exactly 3 for paradox)")
         return False
 
     # Position sizing — flat $10 per bucket, no division
